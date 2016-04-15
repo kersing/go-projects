@@ -1,3 +1,7 @@
+// Copyright © 2016 by Jac Kersing
+// Use of this source code is governed by the MIT license that can be found in the LICENSE file at the top
+// of the github repository for this source
+
 package main
 
 import (
