@@ -5,13 +5,13 @@
 package rn2483
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/tarm/serial"
 	"log"
 	"strconv"
 	"strings"
 	"time"
-	"encoding/hex"
 )
 
 type Rn2483 struct {
@@ -180,7 +180,7 @@ func InitRn2483(portName string, d bool) *Rn2483 {
 // InitAbp initializes the module and connects to LoRaWAN using the
 // supplied device address and keys. Returns true if all commands
 // were accepted by the module. (DOES NOT INDICATE A NETWORK WAS FOUND)
-func (rn *Rn2483) JoinAbp(devAdr string, networkSessionkey string, appSessionkey string, adaptiveRate bool, dataRate int) bool {
+func (rn *Rn2483) JoinAbp(devAdr string, networkSessionkey string, appSessionkey string, adaptiveRate bool, dataRate int, rx2freq int64) bool {
 	result := rn.Reset(true)
 	if result {
 		rn.Send(MAC_SET_STR + MAC_DEVADDR_STR + " " + devAdr + "\r\n")
@@ -206,6 +206,10 @@ func (rn *Rn2483) JoinAbp(devAdr string, networkSessionkey string, appSessionkey
 	}
 	if result && dataRate >= 0 {
 		rn.Send(MAC_SET_STR + MAC_DR_STR + " " + strconv.Itoa(dataRate) + "\r\n")
+		result = rn.expect("ok", 1000, true)
+	}
+	if result && rx2freq != 0 {
+		rn.Send(MAC_SET_STR + MAC_RX2_STR + " 3 " + strconv.FormatInt(rx2freq, 10) + "\r\n")
 		result = rn.expect("ok", 1000, true)
 	}
 	if result {
@@ -306,7 +310,7 @@ func (rn *Rn2483) ReadResult(timeout int32) (int, []byte, error) {
 		if debug {
 			fmt.Printf("\nTimeout waiting for end of line %d\n", timeout)
 		}
-		return str, NewError("Timeout waiting for end of line", XMIT_FAIL)
+		return 0, []byte(str), NewError("Timeout waiting for end of line", XMIT_FAIL)
 	}
 
 	if debug {
@@ -317,11 +321,11 @@ func (rn *Rn2483) ReadResult(timeout int32) (int, []byte, error) {
 		// Got return data
 		sep := strings.Index(str, " ")
 		if sep < 0 {
-			return 0, []byte{}, error.New("Port not found")
+			return 0, []byte{}, NewError("Port not found", XMIT_OK)
 		}
 
 		// Extract port number
-		port := strconv.Atoi(str[:sep])
+		port, _ := strconv.Atoi(str[:sep])
 		bytes := make([]byte, 0, 10)
 		len, error := hex.Decode(bytes, []byte(str[sep:]))
 		if len <= 0 || error != nil {

@@ -33,7 +33,7 @@ func initLora() {
 	loramodule = rn2483.InitRn2483(rn2483port,true)
 	fmt.Println("Init RN2483")
 	for {
-		success := loramodule.JoinAbp(nodeId, "2B7E151628AED2A6ABF7158809CF4F3C", "2B7E151628AED2A6ABF7158809CF4F3C", false, 5)
+		success := loramodule.JoinAbp(nodeId, "2B7E151628AED2A6ABF7158809CF4F3C", "2B7E151628AED2A6ABF7158809CF4F3C", false, 5, 869525000)
 		if success {
 			break
 		}
@@ -76,7 +76,7 @@ func main() {
 		//xmitdata[0] = byte((counter & 0xff) >> 8)
 		//xmitdata[1] = byte(counter & 0xff)
 		xmitdata = fmt.Sprintf("%s,%s",csvdata[2],csvdata[3])
-		_, _, error := loramodule.Transmit(1,false,[]byte(xmitdata))
+		_, _, error := loramodule.Transmit(1,true,[]byte(xmitdata))
 		if error == nil {
 			fmt.Println("Transmission successfull")
 		} else {
