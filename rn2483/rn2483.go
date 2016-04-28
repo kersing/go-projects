@@ -177,7 +177,7 @@ func InitRn2483(portName string, d bool) *Rn2483 {
 	return &Rn2483{port: p}
 }
 
-// InitAbp initializes the module and connects to LoRaWAN using the
+// JoinAbp initializes the module and connects to LoRaWAN using the
 // supplied device address and keys. Returns true if all commands
 // were accepted by the module. (DOES NOT INDICATE A NETWORK WAS FOUND)
 func (rn *Rn2483) JoinAbp(devAdr string, networkSessionkey string, appSessionkey string, adaptiveRate bool, dataRate int, rx2freq int64) bool {
@@ -208,7 +208,7 @@ func (rn *Rn2483) JoinAbp(devAdr string, networkSessionkey string, appSessionkey
 		rn.Send(MAC_SET_STR + MAC_DR_STR + " " + strconv.Itoa(dataRate) + "\r\n")
 		result = rn.expect("ok", 1000, true)
 	}
-	if result && rx2freq != 0 {
+	if result && rx2freq > 0 {
 		rn.Send(MAC_SET_STR + MAC_RX2_STR + " 3 " + strconv.FormatInt(rx2freq, 10) + "\r\n")
 		result = rn.expect("ok", 1000, true)
 	}
@@ -217,6 +217,51 @@ func (rn *Rn2483) JoinAbp(devAdr string, networkSessionkey string, appSessionkey
 		result = rn.expect("ok", 1000, true)
 		if result {
 			result = rn.expect("accepted", 15000, true)
+		}
+	}
+	return result
+}
+
+// JoinOtaa initializes the module and connects to LoRaWAN using the
+// supplied device address and keys. Returns true if all commands
+// were accepted by the module. (DOES NOT INDICATE A NETWORK WAS FOUND)
+func (rn *Rn2483) JoinOtaa(devEui string, appEui string, appKey string, adaptiveRate bool, dataRate int, rx2freq int64) bool {
+	result := rn.Reset(true)
+	if result {
+		rn.Send(MAC_SET_STR + MAC_DEV_EUI_KEY_STR + " " + devEui + "\r\n")
+		result = rn.expect("ok", 1000, true)
+	}
+	if result {
+		rn.Send(MAC_SET_STR + MAC_APP_KEY_STR + " " + appKey + "\r\n")
+		result = rn.expect("ok", 1000, true)
+	}
+	if result {
+		rn.Send(MAC_SET_STR + MAC_APP_EUI_KEY_STR + " " + appEui + "\r\n")
+		result = rn.expect("ok", 1000, true)
+	}
+	if result {
+		rn.Send(MAC_SET_STR + MAC_ADR_STR + " ")
+		if adaptiveRate {
+			rn.Send("on")
+		} else {
+			rn.Send("off")
+		}
+		rn.Send("\r\n")
+		result = rn.expect("ok", 1000, true)
+	}
+	if result && dataRate >= 0 {
+		rn.Send(MAC_SET_STR + MAC_DR_STR + " " + strconv.Itoa(dataRate) + "\r\n")
+		result = rn.expect("ok", 1000, true)
+	}
+	if result && rx2freq > 0 {
+		rn.Send(MAC_SET_STR + MAC_RX2_STR + " 3 " + strconv.FormatInt(rx2freq, 10) + "\r\n")
+		result = rn.expect("ok", 1000, true)
+	}
+	if result {
+		rn.Send(MAC_JOIN_STR + MAC_OTAA_STR + "\r\n")
+		result = rn.expect("ok", 1000, true)
+		if result {
+			result = rn.expect("accepted", 30000, true)
 		}
 	}
 	return result
@@ -321,13 +366,19 @@ func (rn *Rn2483) ReadResult(timeout int32) (int, []byte, error) {
 		// Got return data
 		sep := strings.Index(str, " ")
 		if sep < 0 {
+			return 0, []byte{}, NewError("Space not found", XMIT_OK)
+		}
+		str = str[sep+1:]
+		sep = strings.Index(str, " ")
+		if sep < 0 {
 			return 0, []byte{}, NewError("Port not found", XMIT_OK)
 		}
 
 		// Extract port number
 		port, _ := strconv.Atoi(str[:sep])
-		bytes := make([]byte, 0, 10)
-		len, error := hex.Decode(bytes, []byte(str[sep:]))
+		data := []byte(str[sep+1:])
+		bytes := make([]byte, len(data)/2, len(data)/2)
+		len, error := hex.Decode(bytes, data)
 		if len <= 0 || error != nil {
 			return 0, []byte{}, error
 		}

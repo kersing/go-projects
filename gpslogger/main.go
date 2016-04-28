@@ -31,9 +31,15 @@ func init() {
 
 func initLora() {
 	loramodule = rn2483.InitRn2483(rn2483port,true)
+
+	loramodule.Send("sys get hweui\r\n")
+	hweui := fmt.Println(loramodule.ReadLine(10000))
+	//time.Sleep(time.Duration(60)*time.Second)
+
 	fmt.Println("Init RN2483")
 	for {
-		success := loramodule.JoinAbp(nodeId, "2B7E151628AED2A6ABF7158809CF4F3C", "2B7E151628AED2A6ABF7158809CF4F3C", false, 5, 869525000)
+		//success := loramodule.JoinAbp(nodeId, "2B7E151628AED2A6ABF7158809CF4F3C", "2B7E151628AED2A6ABF7158809CF4F3C", false, 5, 869525000)
+		success := loramodule.JoinOtaa(hweui, "70B3D57ED0000031", "2b7e151628aed2a6abf7158809cf4f3c", false, 5, 869525000)
 		if success {
 			break
 		}
@@ -60,8 +66,8 @@ func main() {
 
 	for {
 		// Loop forever
-		fmt.Println("Sleep",sleepTime, "seconds")
-		time.Sleep(time.Duration(sleepTime) * time.Second)
+		//fmt.Println("Sleep",sleepTime, "seconds")
+		//time.Sleep(time.Duration(sleepTime) * time.Second)
 		fmt.Printf("Time: %s, position: %f, %f +- %f (%s,%d)\n", coords.time, coords.lat, coords.long, coords.hdop, coords.fix, coords.sats)
 		csvdata[0] = strconv.FormatInt(int64(counter),10)
 		csvdata[1] = coords.time
@@ -76,7 +82,7 @@ func main() {
 		//xmitdata[0] = byte((counter & 0xff) >> 8)
 		//xmitdata[1] = byte(counter & 0xff)
 		xmitdata = fmt.Sprintf("%s,%s",csvdata[2],csvdata[3])
-		_, _, error := loramodule.Transmit(1,true,[]byte(xmitdata))
+		_, data, error := loramodule.Transmit(1,false,[]byte(xmitdata))
 		if error == nil {
 			fmt.Println("Transmission successfull")
 		} else {
@@ -88,7 +94,12 @@ func main() {
 				initLora()
 			}
 		}
+		if len(data) != 0 {
+			fmt.Printf("Got %q\r\n",data)
+		}
 
+		fmt.Println("Sleep",sleepTime, "seconds")
+		time.Sleep(time.Duration(sleepTime) * time.Second)
 		//loramodule.Send(rn2483.MAC_GET_STR + "status\r\n")
 		//res, _ := loramodule.ReadLine(10000)
 		//bin, _ := strconv.Atoi(res)
