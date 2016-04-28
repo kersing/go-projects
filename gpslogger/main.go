@@ -33,7 +33,7 @@ func initLora() {
 	loramodule = rn2483.InitRn2483(rn2483port,true)
 
 	loramodule.Send("sys get hweui\r\n")
-	hweui := fmt.Println(loramodule.ReadLine(10000))
+	hweui, _ := loramodule.ReadLine(10000)
 	//time.Sleep(time.Duration(60)*time.Second)
 
 	fmt.Println("Init RN2483")
